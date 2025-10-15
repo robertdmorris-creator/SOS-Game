@@ -212,7 +212,7 @@
                 'expression-0', 'expression-1', 'expression-2', 'expression-3', 'expression-4', 'expression-5'
             ];
 
-            const MISSING_STUDENT_ALERT = "We are missing a student.";
+            const MISSING_STUDENT_ALERT = "I am missing a student.";
 
             const teacherAlerts = [
                 "The student has set a fire in the classroom.",
@@ -320,7 +320,7 @@
                     // SUCCESS PATH
                     playRadioSounds(true);
                     setTimeout(() => {
-                        intercomText.textContent = "We are on our way! Stat!";
+                        intercomText.textContent = "Help is on the way!! Stat!!";
                         helpButton.classList.remove('pressed');
                         gameWon();
                     }, 2500);
