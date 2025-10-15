@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Buzzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.min.js"></script>
+    <style>
+        body {
+            font-family: 'Kalam', cursive;
+            touch-action: manipulation;
+        }
+        .walkie-talkie-case {
+            background-color: #4b5563; /* gray-600 */
+            border: 4px solid #1f2937; /* gray-800 */
+            box-shadow: 0 10px 0 #111827; /* gray-900 */
+        }
+        .help-button {
+            background-color: #ef4444; /* red-500 */
+            box-shadow: inset 0 -8px 0 rgba(0,0,0,0.2), 0 8px 0 #b91c1c; /* red-700 */
+            transition: all 0.1s ease-in-out;
+        }
+        .help-button:active, .help-button.pressed {
+            transform: translateY(8px);
+            box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
+        }
+        .frustration-bar-inner {
+            transition: height 0.3s ease-in-out;
+        }
+        .student {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+        .fade-in {
+            opacity: 1 !important;
+            transform: scale(1) !important;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .animate-shake {
+            animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        .speaker-hole {
+            width: 8px;
+            height: 8px;
+            background-color: #1f2937;
+            border-radius: 50%;
+        }
+        .antenna {
+            width: 12px;
+            height: 40px;
+            background-color: #374151; /* gray-700 */
+            border: 2px solid #1f2937; /* gray-800 */
+            border-bottom: none;
+        }
+        
+        /* Student */
+        .student-head {
+            width: 60px;
+            height: 60px;
+            background-color: #F8D7BE;
+            border-radius: 50%;
+            border: 2px solid #333;
+            position: relative;
+            z-index: 1;
+        }
+        .student-hair {
+            width: 50px;
+            height: 25px;
+            background-color: #A0522D; /* Sienna */
+            border-radius: 50% 50% 0 0;
+            position: absolute;
+            top: -10px;
+            left: 5px;
+            z-index: 2;
+        }
+        .student-eyes {
+            display: flex;
+            gap: 8px;
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 3;
+        }
+        .student-eye {
+            width: 6px;
+            height: 6px;
+            background-color: #333;
+            border-radius: 50%;
+        }
+        .student-mouth {
+            width: 20px;
+            height: 4px;
+            background-color: #333;
+            border-radius: 0 0 8px 8px;
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 3;
+        }
+
+        /* Student expressions */
+        .student.expression-0 .student-mouth { width: 20px; height: 4px; border-radius: 0 0 8px 8px; } /* Neutral */
+        .student.expression-1 .student-mouth { width: 25px; height: 8px; border-radius: 0 0 12px 12px; transform: translateX(-50%) translateY(2px); } /* Annoyed */
+        .student.expression-2 .student-mouth { width: 15px; height: 15px; border-radius: 50%; transform: translateX(-50%) rotate(90deg); } /* Confused */
+        .student.expression-3 .student-mouth { width: 30px; height: 10px; border-radius: 50%; transform: translateX(-50%) rotate(-10deg); background-color: #ef4444; } /* Mischievous */
+        .student.expression-4 .student-eyes .student-eye { width: 8px; height: 3px; background-color: #333; border-radius: 0; transform: translateY(2px); } /* Squinting */
+        .student.expression-5 .student-mouth { width: 10px; height: 10px; border-radius: 50%; transform: translateX(-50%) translateY(5px); background-color: #b91c1c; } /* Yelling */
+    </style>
+</head>
+<body class="bg-gray-800 flex items-center justify-center h-screen overflow-hidden">
+
+    <div id="game-container" class="relative w-full h-full sm:max-w-lg sm:h-[80vh] sm:max-h-[700px] bg-yellow-100 sm:border-8 border-yellow-800 sm:rounded-2xl shadow-2xl p-2 sm:p-4 md:p-6 flex flex-col justify-between overflow-hidden">
+        <!-- Classroom Background Elements --><div class="absolute top-0 left-0 w-full h-full bg-blue-200">
+            <div class="h-2/3 bg-gray-300 border-b-8 border-gray-400"></div>
+        </div>
+        <div class="absolute top-1/3 left-0 w-full h-12 bg-yellow-700"></div> <!-- Chalk Rail --><!-- Game UI --><header class="relative z-10 flex flex-col sm:flex-row items-center sm:items-start sm:justify-between gap-2 sm:gap-0">
+            <div id="intercom" class="bg-gray-800 text-green-400 p-3 rounded-lg border-2 sm:border-4 border-gray-600 w-full sm:w-2/3 shadow-inner">
+                <p class="text-base sm:text-lg font-bold">WALKIE TALKIE</p>
+                <p id="intercom-text" class="text-xl h-8">Press help button.</p>
+            </div>
+            <div class="w-full sm:w-1/4">
+                <h3 class="text-center text-white bg-red-700 rounded-t-lg py-1 text-sm sm:text-base">Frustration</h3>
+                <div id="frustration-meter" class="relative h-24 sm:h-32 bg-gray-300 border-4 border-gray-600 rounded-b-lg overflow-hidden">
+                    <div id="frustration-bar" class="absolute bottom-0 w-full bg-red-500 frustration-bar-inner" style="height: 0%;"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Student Area --><main id="student-area" class="relative z-0 flex-grow flex items-center justify-center">
+             <div id="student" class="absolute transition-transform duration-300 opacity-0 transform scale-50">
+                 <div class="student-hair"></div>
+                 <div class="student-head">
+                     <div class="student-eyes">
+                         <div class="student-eye"></div>
+                         <div class="student-eye"></div>
+                     </div>
+                     <div class="student-mouth"></div>
+                 </div>
+             </div>
+        </main>
+
+        <!-- Walkie Talkie Area --><footer class="relative z-10 flex justify-center items-end">
+            <div class="antenna rounded-t-lg"></div>
+            <div id="walkie-talkie" class="walkie-talkie-case w-48 h-72 sm:w-48 sm:h-64 rounded-xl flex flex-col items-center justify-around p-4 cursor-pointer select-none">
+                <div class="grid grid-cols-3 gap-2">
+                    <!-- Speaker holes --><div class="speaker-hole"></div><div class="speaker-hole"></div><div class="speaker-hole"></div>
+                    <div class="speaker-hole"></div><div class="speaker-hole"></div><div class="speaker-hole"></div>
+                    <div class="speaker-hole"></div><div class="speaker-hole"></div><div class="speaker-hole"></div>
+                </div>
+                <div class="help-button w-32 h-32 rounded-full flex items-center justify-center text-white text-3xl font-bold text-center">
+                    HELP
+                </div>
+            </div>
+        </footer>
+
+        <!-- Start Screen Overlay --><div id="start-screen" class="absolute inset-0 bg-black bg-opacity-70 z-20 flex flex-col items-center justify-center text-white p-4 sm:p-8 text-center">
+            <h1 class="text-4xl sm:text-5xl font-bold mb-4">Admin Buzzer</h1>
+            <p class="text-lg sm:text-xl mb-8">A student is causing a problem. Hit the help button to call an administrator for help.</p>
+            <button id="start-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 sm:py-4 sm:px-8 rounded-xl text-2xl sm:text-3xl shadow-lg transform hover:scale-105 transition-transform">
+                Start Shift
+            </button>
+        </div>
+
+        <!-- Game Over Screen Overlay --><div id="game-over-screen" class="absolute inset-0 bg-black bg-opacity-80 z-20 flex-col items-center justify-center text-white p-4 sm:p-8 text-center hidden">
+            <h2 class="text-4xl sm:text-6xl font-bold mb-4 text-red-500">ENOUGH!</h2>
+            <p class="text-xl sm:text-2xl mb-8">You've reached your breaking point. The admin never answers. Time for a long summer break.</p>
+            <button id="restart-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 sm:py-4 sm:px-8 rounded-xl text-2xl sm:text-3xl shadow-lg transform hover:scale-105 transition-transform">
+                Try Again Tomorrow
+            </button>
+        </div>
+        
+        <!-- Game Won Screen Overlay --><div id="game-won-screen" class="absolute inset-0 bg-black bg-opacity-80 z-20 flex-col items-center justify-center text-white p-4 sm:p-8 text-center hidden">
+            <h2 class="text-4xl sm:text-6xl font-bold mb-4 text-green-400">HELP IS COMING!</h2>
+            <p class="text-xl sm:text-2xl mb-8">They're actually on their way! You can finally relax... for now.</p>
+            <button id="play-again-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 sm:py-4 sm:px-8 rounded-xl text-2xl sm:text-3xl shadow-lg transform hover:scale-105 transition-transform">
+                Start New Shift
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function initializeGame() {
+            const startScreen = document.getElementById('start-screen');
+            const gameOverScreen = document.getElementById('game-over-screen');
+            const gameWonScreen = document.getElementById('game-won-screen');
+            const startButton = document.getElementById('start-button');
+            const restartButton = document.getElementById('restart-button');
+            const playAgainButton = document.getElementById('play-again-button');
+            const walkieTalkie = document.getElementById('walkie-talkie');
+            const helpButton = walkieTalkie.querySelector('.help-button');
+            const intercomText = document.getElementById('intercom-text');
+            const frustrationBar = document.getElementById('frustration-bar');
+            const student = document.getElementById('student');
+            const studentArea = document.getElementById('student-area');
+
+            let frustration = 0;
+            const MAX_FRUSTRATION = 100;
+            let isCalling = false;
+            let noiseSynth = null;
+            let successSynth = null;
+            let helpPressCount = 0;
+
+            const studentExpressions = [
+                'expression-0', 'expression-1', 'expression-2', 'expression-3', 'expression-4', 'expression-5'
+            ];
+
+            const MISSING_STUDENT_ALERT = "We are missing a student.";
+
+            const teacherAlerts = [
+                "The student has set a fire in the classroom.",
+                "The student just threw a chair through the smartboard.",
+                "A student is building a fort out of desks and refusing all negotiations.",
+                "The student is teaching the other kids how to file their taxes. Incorrectly.",
+                "A student has declared themself sovereign and is seceding from the school.",
+                "Our friend is screaming again.",
+                "Our special fella just stabbed someone with scissors.",
+                "We have a student trying to summon a demon in the back of the class.",
+                "A student has replaced all the hand sanitizer with glue.",
+                "We have a biting incident. The victim is a desk.",
+                "There's a... situation... in the library.",
+                "Code Red! I repeat, Code Red!",
+                "Sending out an S.O.S.",
+                "Student just threw a chair out the window!",
+                "They're refusing to leave the classroom, need backup!"
+            ];
+
+            function playRadioSounds(isSuccess = false) {
+                if (!noiseSynth || !successSynth) return;
+                if (Tone.context.state !== 'running') {
+                    Tone.context.resume();
+                }
+                // Short "kssht" click sound on press
+                noiseSynth.triggerAttackRelease("16n");
+                
+                if (!isSuccess) {
+                    // Flatline sound after a delay for failure
+                    setTimeout(() => {
+                        if (isCalling) {
+                            noiseSynth.envelope.attack = 0.5;
+                            noiseSynth.envelope.sustain = 1;
+                            noiseSynth.triggerAttack();
+                        }
+                    }, 1500);
+                } else {
+                    // Beep-boop sound for success
+                    setTimeout(() => {
+                        if(isCalling) {
+                            successSynth.triggerAttackRelease("C5", "16n", Tone.now());
+                            successSynth.triggerAttackRelease("G5", "16n", Tone.now() + 0.15);
+                        }
+                    }, 1000);
+                }
+            }
+
+            function stopRadioSounds() {
+                if(noiseSynth) {
+                    noiseSynth.triggerRelease();
+                    noiseSynth.envelope.attack = 0.005; // Reset for next click
+                    noiseSynth.envelope.sustain = 0;
+                }
+            }
+            
+            function spawnStudent() {
+                studentExpressions.forEach(cls => student.classList.remove(cls));
+                const randomExpression = studentExpressions[Math.floor(Math.random() * studentExpressions.length)];
+                student.classList.add(randomExpression);
+
+                const areaRect = studentArea.getBoundingClientRect();
+                const studentWidth = 60; 
+                const studentHeight = 70; 
+                const maxX = areaRect.width - studentWidth;
+                const maxY = areaRect.height - studentHeight; 
+                const randomX = Math.random() * (maxX - 20) + 10;
+                const randomY = Math.random() * (maxY - 20) + 10;
+                student.style.left = `${randomX}px`;
+                student.style.top = `${randomY}px`;
+                setTimeout(() => student.classList.add('fade-in'), 100);
+            }
+
+            function updateFrustration(amount) {
+                frustration = Math.min(frustration + amount, MAX_FRUSTRATION);
+                frustrationBar.style.height = `${frustration}%`;
+                if (frustration > 70) {
+                     document.getElementById('game-container').classList.add('animate-shake');
+                }
+                if (frustration >= MAX_FRUSTRATION) {
+                    gameOver();
+                }
+            }
+
+            function handleHelpButtonPress() {
+                if (isCalling) return;
+                isCalling = true;
+                helpButton.classList.add('pressed');
+                student.classList.remove('fade-in');
+                
+                helpPressCount++;
+
+                let possibleAlerts = [...teacherAlerts];
+                if (helpPressCount >= 8) {
+                    possibleAlerts.push(MISSING_STUDENT_ALERT);
+                }
+
+                const alert = possibleAlerts[Math.floor(Math.random() * possibleAlerts.length)];
+                intercomText.textContent = alert;
+
+                if (helpPressCount >= 8) {
+                    helpPressCount = 0; // Reset for the next cycle
+                }
+
+                if (alert === MISSING_STUDENT_ALERT) {
+                    // SUCCESS PATH
+                    playRadioSounds(true);
+                    setTimeout(() => {
+                        intercomText.textContent = "We are on our way! Stat!";
+                        helpButton.classList.remove('pressed');
+                        gameWon();
+                    }, 2500);
+
+                } else {
+                    // FAILURE PATH
+                    playRadioSounds(false);
+                    setTimeout(() => {
+                        intercomText.textContent = "*radio silence...*";
+                        updateFrustration(15 + Math.random() * 5);
+                        helpButton.classList.remove('pressed');
+
+                        setTimeout(() => {
+                            if (frustration < MAX_FRUSTRATION) {
+                                stopRadioSounds();
+                                intercomText.textContent = "Press help button.";
+                                spawnStudent();
+                                isCalling = false;
+                            }
+                        }, 2500);
+                    }, 1500 + Math.random() * 1000);
+                }
+            }
+            
+            function gameWon() {
+                isCalling = true; // Prevents further clicks
+                stopRadioSounds();
+                setTimeout(() => {
+                    gameWonScreen.classList.remove('hidden');
+                    gameWonScreen.classList.add('flex');
+                }, 1500);
+            }
+
+            function startGame() {
+                // Initialize audio synths on first user interaction
+                if (typeof Tone !== 'undefined') {
+                    if (!noiseSynth) {
+                        noiseSynth = new Tone.NoiseSynth({
+                            noise: { type: 'white' },
+                            envelope: { attack: 0.005, decay: 0.05, sustain: 0 }
+                        }).toDestination();
+                        noiseSynth.volume.value = -20;
+                        
+                        successSynth = new Tone.Synth({
+                            oscillator: { type: 'sine' },
+                            envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.1 }
+                        }).toDestination();
+                        successSynth.volume.value = -10;
+                    }
+                    if (Tone.context.state !== 'running') {
+                        Tone.context.resume();
+                    }
+                }
+
+                frustration = 0;
+                helpPressCount = 0;
+                updateFrustration(0);
+                document.getElementById('game-container').classList.remove('animate-shake');
+                isCalling = false;
+                intercomText.textContent = "Press help button.";
+                startScreen.classList.add('hidden');
+                gameOverScreen.classList.add('hidden');
+                gameOverScreen.classList.remove('flex');
+                gameWonScreen.classList.add('hidden');
+                gameWonScreen.classList.remove('flex');
+                spawnStudent();
+            }
+
+            function gameOver() {
+                isCalling = true;
+                stopRadioSounds();
+                intercomText.textContent = "SYSTEM OFFLINE";
+                student.classList.remove('fade-in');
+                setTimeout(() => {
+                    gameOverScreen.classList.remove('hidden');
+                    gameOverScreen.classList.add('flex');
+                }, 1000);
+            }
+
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', startGame);
+            playAgainButton.addEventListener('click', startGame);
+            walkieTalkie.addEventListener('click', handleHelpButtonPress);
+        }
+        
+        window.addEventListener('DOMContentLoaded', initializeGame);
+    </script>
+</body>
+</html>
+
